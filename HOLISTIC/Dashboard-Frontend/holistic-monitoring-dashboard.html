@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Holistic Soldier Monitoring</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            margin: 0;
+            font-size: 2.5rem;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .panel {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+        
+        .panel h2 {
+            margin-top: 0;
+            color: #2c3e50;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        
+        .sensor-data {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .data-item {
+            margin-bottom: 15px;
+        }
+        
+        .data-label {
+            font-weight: bold;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+        
+        .data-value {
+            font-size: 1.2rem;
+            color: #2c3e50;
+        }
+        
+        .alert-panel {
+            background-color: #fff8e1;
+            border-left: 5px solid #ffc107;
+        }
+        
+        .alert-critical {
+            background-color: #ffebee;
+            border-left: 5px solid #f44336;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        .alert-message {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+            flex: 1;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        
+        .map-container {
+            height: 300px;
+            background-color: #eee;
+            border-radius: 8px;
+            margin-top: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-normal {
+            background-color: #2ecc71;
+        }
+        
+        .status-warning {
+            background-color: #f39c12;
+        }
+        
+        .status-critical {
+            background-color: #e74c3c;
+        }
+        
+        .last-updated {
+            font-size: 0.9rem;
+            color: #95a5a6;
+            text-align: right;
+            margin-top: 10px;
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Holistic Soldier Monitoring System</h1>
+        </header>
+        
+        <div class="dashboard">
+            <div class="panel">
+                <h2>Real-time Sensor Data</h2>
+                <div class="sensor-data">
+                    <div class="data-item">
+                        <div class="data-label">Body Temperature</div>
+                        <div class="data-value" id="bodyTemp">-- °C</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-label">Heart Rate</div>
+                        <div class="data-value" id="heartRate">-- bpm</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-label">Atmospheric Temp</div>
+                        <div class="data-value" id="atmosphericTemp">-- °C</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-label">Atmospheric Humidity</div>
+                        <div class="data-value" id="atmosphericHumidity">-- %</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-label">Location</div>
+                        <div class="data-value" id="location">--</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-label">Speed</div>
+                        <div class="data-value" id="speed">-- km/h</div>
+                    </div>
+                </div>
+                
+                <div class="map-container">
+                    <div id="map"></div>
+                </div>
+                
+                <div class="last-updated" id="lastUpdated">Last updated: --</div>
+            </div>
+            
+            <div class="panel" id="alertPanel">
+                <h2>Health Status</h2>
+                <div id="statusIndicator" class="status-indicator status-normal"></div>
+                <span id="statusText">Normal</span>
+                
+                <div class="alert-message" id="alertMessage">
+                    ✅ Status Normal – No action needed.
+                </div>
+                
+                <div class="buttons">
+                    <button id="predictLatestBtn">Predict Latest Data</button>
+                    <button id="predictStoredBtn">Predict Average (Last 10)</button>
+                </div>
+                
+                <h3 style="margin-top: 30px;">Prediction Results</h3>
+                <div id="predictionResults">
+                    <p>No prediction made yet.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Leaflet for maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    
+    <script>
+        // Global variables
+        let map;
+        let marker;
+        let lastData = null;
+        
+        // Initialize the map
+        function initMap() {
+            map = L.map('map').setView([0, 0], 2);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            
+            // Add a default marker that we'll update with real data
+            marker = L.marker([0, 0]).addTo(map)
+                .bindPopup("Soldier location");
+        }
+        
+        // Update the map with new coordinates
+        function updateMap(lat, lng) {
+            if (map && marker) {
+                const newLatLng = new L.LatLng(lat, lng);
+                marker.setLatLng(newLatLng);
+                map.setView(newLatLng, 15);
+            }
+        }
+        
+        // Format date/time for display
+        function formatDateTime(dateString) {
+            if (!dateString) return '--';
+            const date = new Date(dateString);
+            return date.toLocaleString();
+        }
+        
+        // Update the UI with new sensor data
+        function updateSensorData(data) {
+            if (!data) return;
+            
+            lastData = data;
+            
+            // Update basic sensor values
+            document.getElementById('bodyTemp').textContent = ${data.bodyTemperature || '--'} °C;
+            document.getElementById('heartRate').textContent = ${data.heartRate || '--'} bpm;
+            document.getElementById('atmosphericTemp').textContent = ${data.atmosphericTemperature || '--'} °C;
+            document.getElementById('atmosphericHumidity').textContent = ${data.atmosphericHumidity || '--'} %;
+            document.getElementById('speed').textContent = ${data.speed || '--'} km/h;
+            document.getElementById('location').textContent = ${data.latitude || '--'}, ${data.longitude || '--'};
+            document.getElementById('lastUpdated').textContent = Last updated: ${formatDateTime(data.timestamp)};
+            
+            // Update map if we have coordinates
+            if (data.latitude && data.longitude) {
+                updateMap(data.latitude, data.longitude);
+            }
+        }
+        
+        // Update the alert status
+        function updateAlertStatus(label, message) {
+            const alertPanel = document.getElementById('alertPanel');
+            const statusIndicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            const alertMessage = document.getElementById('alertMessage');
+            
+            // Remove all status classes
+            alertPanel.classList.remove('alert-panel', 'alert-critical');
+            statusIndicator.classList.remove('status-normal', 'status-warning', 'status-critical');
+            
+            // Set new status based on label
+            if (label === 0) {
+                statusIndicator.classList.add('status-normal');
+                statusText.textContent = 'Normal';
+            } else if (label === 1 || label === 2) {
+                alertPanel.classList.add('alert-panel');
+                statusIndicator.classList.add('status-warning');
+                statusText.textContent = 'Warning';
+            } else if (label === 3 || label === 4) {
+                alertPanel.classList.add('alert-critical');
+                statusIndicator.classList.add('status-critical');
+                statusText.textContent = 'Critical';
+            }
+            
+            alertMessage.textContent = message;
+        }
+        
+        // Fetch latest data from backend
+        async function fetchLatestData() {
+            try {
+                const response = await fetch('http://localhost:8080/api/predict/latest');
+                if (!response.ok) throw new Error('Network response was not ok');
+                const data = await response.json();
+                updateSensorData(data);
+            } catch (error) {
+                console.error('Error fetching latest data:', error);
+            }
+        }
+        
+        // Make prediction request
+        async function makePrediction(endpoint) {
+            const predictLatestBtn = document.getElementById('predictLatestBtn');
+            const predictStoredBtn = document.getElementById('predictStoredBtn');
+            const resultsDiv = document.getElementById('predictionResults');
+            
+            // Disable buttons during request
+            predictLatestBtn.disabled = true;
+            predictStoredBtn.disabled = true;
+            resultsDiv.innerHTML = '<p>Processing prediction...</p>';
+            
+            try {
+                const response = await fetch(http://localhost:8080/api/predict/${endpoint});
+                if (!response.ok) throw new Error('Network response was not ok');
+                const result = await response.text();
+                
+                // Parse the result (assuming it comes from the ML model)
+                try {
+                    const mlResponse = JSON.parse(result);
+                    if (mlResponse.message) {
+                        updateAlertStatus(mlResponse.label || 0, mlResponse.message);
+                        resultsDiv.innerHTML = `
+                            <p><strong>Prediction Result:</strong></p>
+                            <p>Status: ${mlResponse.message}</p>
+                            <p>Alert Level: ${mlResponse.label || 0}</p>
+                        `;
+                    } else {
+                        resultsDiv.innerHTML = <p>${result}</p>;
+                    }
+                } catch (e) {
+                    resultsDiv.innerHTML = <p>${result}</p>;
+                }
+            } catch (error) {
+                console.error('Error making prediction:', error);
+                resultsDiv.innerHTML = <p>Error: ${error.message}</p>;
+            } finally {
+                // Re-enable buttons
+                predictLatestBtn.disabled = false;
+                predictStoredBtn.disabled = false;
+            }
+        }
+        
+        // WebSocket connection for real-time updates
+        function connectWebSocket() {
+            const socket = new WebSocket('ws://localhost:8080/ws');
+            
+            socket.onopen = function() {
+                console.log('WebSocket connection established');
+            };
+            
+            socket.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                updateSensorData(data);
+            };
+            
+            socket.onclose = function() {
+                console.log('WebSocket connection closed. Attempting to reconnect...');
+                setTimeout(connectWebSocket, 5000);
+            };
+            
+            socket.onerror = function(error) {
+                console.error('WebSocket error:', error);
+            };
+        }
+        
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+            fetchLatestData();
+            connectWebSocket();
+            
+            // Set up event listeners for buttons
+            document.getElementById('predictLatestBtn').addEventListener('click', () => {
+                makePrediction('latest');
+            });
+            
+            document.getElementById('predictStoredBtn').addEventListener('click', () => {
+                makePrediction('stored');
+            });
+            
+            // Poll for updates every 10 seconds as fallback
+            setInterval(fetchLatestData, 10000);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sensor Monitoring Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> 
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3.0.1"></script> 
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.2.0"></script> 
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script> 
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script> 
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.1/dist/chartjs-plugin-zoom.min.js"></script> 
+  <style>
+    :root {
+      --primary-color: #4CAF50;
+      --primary-dark: #43A047;
+      --secondary-color: #2196F3;
+      --danger-color: #F44336;
+      --warning-color: #FFC107;
+      --background-dark: #121212;
+      --background-light: #1e1e1e;
+      --text-primary: #e0e0e0;
+      --text-secondary: #aaa;
+      --border-color: #333;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: var(--background-dark);
+      color: var(--text-primary);
+      margin: 0;
+      padding: 20px;
+    }
+
+    .dashboard {
+      max-width: 1800px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      color: var(--primary-color);
+      margin-bottom: 30px;
+    }
+
+    .data-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-bottom: 20px;
+      background: var(--background-light);
+      padding: 15px;
+      border-radius: 8px;
+    }
+
+    .summary-card {
+      flex: 1;
+      min-width: 150px;
+      background: #2d2d2d;
+      padding: 15px;
+      border-radius: 6px;
+      text-align: center;
+    }
+
+    .summary-card h4 {
+      margin: 0 0 5px 0;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .summary-card p {
+      margin: 0;
+      font-size: 1.4rem;
+      font-weight: bold;
+      color: var(--primary-color);
+    }
+
+    .chart-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 25px;
+      margin-bottom: 25px;
+    }
+
+    .chart-container {
+      flex: 1;
+      min-width: 450px;
+      background: var(--background-light);
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border-color);
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .chart-type-toggle {
+      display: flex;
+      gap: 8px;
+      background: #2d2d2d;
+      padding: 5px;
+      border-radius: 8px;
+    }
+
+    .chart-type-toggle button {
+      padding: 6px 10px;
+      background: #333;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    .chart-type-toggle button.active {
+      background: var(--primary-color);
+    }
+
+    canvas {
+      height: 350px !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard">
+    <h1>Sensor Monitoring Dashboard</h1>
+
+    <!-- Summary Cards -->
+    <div class="data-summary" id="sensorSummary">
+      <div class="summary-card">
+        <h4>Atmospheric Temperature</h4>
+        <p id="currentAtmosTemp">-- °C</p>
+      </div>
+      <div class="summary-card">
+        <h4>Atmospheric Humidity</h4>
+        <p id="currentAtmosHumidity">-- %</p>
+      </div>
+      <div class="summary-card">
+        <h4>Body Temperature</h4>
+        <p id="currentBodyTemp">-- °C</p>
+      </div>
+      <div class="summary-card">
+        <h4>Heart Rate</h4>
+        <p id="currentHeartRate">-- bpm</p>
+      </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="chart-row">
+      <div class="chart-container">
+        <div class="chart-header">
+          <h3>Atmospheric Temperature <small>(°C)</small></h3>
+          <div class="chart-type-toggle">
+            <button class="chart-type-btn active" data-chart="atmosTempChart" data-type="line">Line</button>
+            <button class="chart-type-btn" data-chart="atmosTempChart" data-type="bar">Bar</button>
+          </div>
+        </div>
+        <canvas id="atmosTempChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <div class="chart-header">
+          <h3>Atmospheric Humidity <small>(%)</small></h3>
+          <div class="chart-type-toggle">
+            <button class="chart-type-btn active" data-chart="atmosHumidityChart" data-type="line">Line</button>
+            <button class="chart-type-btn" data-chart="atmosHumidityChart" data-type="bar">Bar</button>
+          </div>
+        </div>
+        <canvas id="atmosHumidityChart"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-row">
+      <div class="chart-container">
+        <div class="chart-header">
+          <h3>Body Temperature <small>(°C)</small></h3>
+          <div class="chart-type-toggle">
+            <button class="chart-type-btn active" data-chart="bodyTempChart" data-type="line">Line</button>
+            <button class="chart-type-btn" data-chart="bodyTempChart" data-type="bar">Bar</button>
+          </div>
+        </div>
+        <canvas id="bodyTempChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <div class="chart-header">
+          <h3>Heart Rate <small>(bpm)</small></h3>
+          <div class="chart-type-toggle">
+            <button class="chart-type-btn active" data-chart="heartRateChart" data-type="line">Line</button>
+            <button class="chart-type-btn" data-chart="heartRateChart" data-type="bar">Bar</button>
+          </div>
+        </div>
+        <canvas id="heartRateChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Chart instances
+    let atmosTempChart, atmosHumidityChart, bodyTempChart, heartRateChart;
+
+    const backendUrl = "http://localhost:8080"; // Update this
+    const MAX_POINTS = 200;
+
+    // WebSocket setup
+    function connectWebSocket() {
+      const socket = new SockJS(${backendUrl}/ws);
+      const stompClient = Stomp.over(socket);
+      stompClient.connect({}, () => {
+        stompClient.subscribe('/topic/soldierData', (message) => {
+          const data = JSON.parse(message.body);
+          processIncomingData(data);
+        });
+      });
+    }
+
+    function createChart(elementId, type, label, borderColor, backgroundColor, stepped = false) {
+      return new Chart(document.getElementById(elementId), {
+        type: type,
+        data: {
+          datasets: [{
+            label: label,
+            data: [],
+            borderColor: borderColor,
+            backgroundColor: backgroundColor,
+            borderWidth: 2,
+            tension: type === 'line' ? 0.1 : undefined,
+            stepped: stepped ? 'after' : false,
+            pointRadius: 3,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          scales: {
+            x: {
+              type: 'time',
+              time: {
+                tooltipFormat: 'MMM d, yyyy HH:mm:ss',
+                displayFormats: {
+                  second: 'HH:mm:ss'
+                }
+              },
+              title: { display: true, text: 'Time' },
+              ticks: { color: '#aaa' },
+              grid: { color: '#333' }
+            },
+            y: {
+              beginAtZero: false,
+              title: { display: true, text: label },
+              ticks: { color: '#aaa' },
+              grid: { color: '#333' }
+            }
+          },
+          plugins: {
+            legend: { labels: { color: '#aaa' } },
+            tooltip: {
+              mode: 'index',
+              intersect: false,
+              callbacks: {
+                label: (ctx) => ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Initialize charts
+    function initCharts() {
+      atmosTempChart = createChart('atmosTempChart', 'line', 'Atmospheric Temp (°C)', '#FF6384', 'rgba(255, 99, 132, 0.1)');
+      atmosHumidityChart = createChart('atmosHumidityChart', 'line', 'Atmospheric Humidity (%)', '#36A2EB', 'rgba(54, 162, 235, 0.1)');
+      bodyTempChart = createChart('bodyTempChart', 'line', 'Body Temp (°C)', '#FFCE56', 'rgba(255, 206, 86, 0.1)');
+      heartRateChart = createChart('heartRateChart', 'line', 'Heart Rate (bpm)', '#4BC0C0', 'rgba(75, 192, 192, 0.1)');
+    }
+
+    // Add data to chart
+    function addDataPoint(chart, timestamp, value) {
+      if (chart.data.datasets[0].data.length > MAX_POINTS) {
+        chart.data.datasets[0].data.shift();
+      }
+      chart.data.datasets[0].data.push({
+        x: new Date(timestamp),
+        y: value
+      });
+      chart.update('none');
+    }
+
+    // Process incoming data
+    function processIncomingData(data) {
+      const now = new Date().toISOString();
+      document.getElementById('currentAtmosTemp').textContent = ${data.atmosphericTemperature.toFixed(1)} °C;
+      document.getElementById('currentAtmosHumidity').textContent = ${data.atmosphericHumidity.toFixed(1)} %;
+      document.getElementById('currentBodyTemp').textContent = ${data.bodyTemperature.toFixed(1)} °C;
+      document.getElementById('currentHeartRate').textContent = ${data.heartRate.toFixed(0)} bpm;
+
+      addDataPoint(atmosTempChart, now, data.atmosphericTemperature);
+      addDataPoint(atmosHumidityChart, now, data.atmosphericHumidity);
+      addDataPoint(bodyTempChart, now, data.bodyTemperature);
+      addDataPoint(heartRateChart, now, data.heartRate);
+    }
+
+    // Toggle chart types
+    document.querySelectorAll('.chart-type-btn').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const chartId = this.dataset.chart;
+        const chartType = this.dataset.type;
+        const chart = window[chartId];
+
+        document.querySelectorAll(.chart-type-btn[data-chart="${chartId}"]).forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+
+        const config = {
+          type: chartType,
+          data: chart.data,
+          options: chart.options
+        };
+
+        chart.destroy();
+        window[chartId] = new Chart(document.getElementById(chartId), config);
+      });
+    });
+
+    // Initialize everything
+    document.addEventListener('DOMContentLoaded', () => {
+      initCharts();
+      connectWebSocket();
+    });
+  </script>
+</body>
+</html>
